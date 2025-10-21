@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import { View, StyleSheet, Alert, Platform, Linking } from 'react-native';
 import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
@@ -7,10 +7,31 @@ import * as Contacts from 'expo-contacts';
 interface WebViewWithNativeProps {
   source: { uri: string };
   onNavigationStateChange?: (navState: any) => void;
+  onNavigationUpdate?: (navigationData: any) => void;
 }
 
-const WebViewWithNative: React.FC<WebViewWithNativeProps> = ({ source, onNavigationStateChange }) => {
+// 添加 ref 类型定义
+export interface WebViewWithNativeRef {
+  goBack: () => void;
+}
+
+const WebViewWithNative = forwardRef<WebViewWithNativeRef, WebViewWithNativeProps>(({ 
+  source, 
+  onNavigationStateChange, 
+  onNavigationUpdate
+}, ref) => {
   const webViewRef = useRef<WebView>(null);
+
+  // 暴露给父组件的方法
+  useImperativeHandle(ref, () => ({
+    goBack: () => {
+      // 向 H5 发送返回消息，让 Vue Router 处理路由返回
+      webViewRef.current?.postMessage(JSON.stringify({
+        type: 'goBack',
+        data: {}
+      }));
+    }
+  }));
 
   // 定位功能
   const getCurrentLocation = async () => {
@@ -29,6 +50,7 @@ const WebViewWithNative: React.FC<WebViewWithNativeProps> = ({ source, onNavigat
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
         accuracy: location.coords.accuracy,
+        source:'native'
       };
 
       webViewRef.current?.postMessage(JSON.stringify({
@@ -140,27 +162,25 @@ const WebViewWithNative: React.FC<WebViewWithNativeProps> = ({ source, onNavigat
   // 处理来自WebView的消息
   const handleMessage = (event: any) => {
     try {
-      const message = JSON.parse(event.nativeEvent.data);
-      
-      switch (message.type) {
+      const data = JSON.parse(event.nativeEvent.data);
+      console.log('收到H5消息:', data);
+  
+      switch (data.type) {
+        case 'updateNavigation':
+          // 通知父组件更新导航
+          onNavigationUpdate?.(data.data);
+          break;
         case 'getLocation':
           getCurrentLocation();
           break;
         case 'selectContact':
           selectContact();
           break;
-        case 'selectContactFromList':
-          // 处理从H5页面选择的联系人
-          webViewRef.current?.postMessage(JSON.stringify({
-            type: 'contact',
-            data: message.data
-          }));
-          break;
         default:
-          console.log('未知消息类型:', message.type);
+          console.log('未知消息类型:', data.type);
       }
     } catch (error) {
-      console.error('处理WebView消息失败:', error);
+      console.error('解析H5消息失败:', error);
     }
   };
 
@@ -184,7 +204,7 @@ const WebViewWithNative: React.FC<WebViewWithNativeProps> = ({ source, onNavigat
       />
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

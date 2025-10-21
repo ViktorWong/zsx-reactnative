@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, StatusBar, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AntDesign } from '@react-native-vector-icons/ant-design';
 
 interface CustomNavigationProps {
   title: string;
@@ -16,10 +17,14 @@ const CustomNavigation: React.FC<CustomNavigationProps> = ({
   canGoBack,
   onBackPress,
   onClose,
-  backgroundColor = '#007AFF',
-  textColor = '#FFFFFF'
+  backgroundColor = '#FFFFFF',
+  textColor = '#000000'
 }) => {
   const insets = useSafeAreaInsets();
+  
+  // 定义不需要返回按钮的页面标题
+  const noBackButtonTitles = ['首页','行程', '我的']; // 根据你的需求调整
+  const shouldShowBackButton = canGoBack && !noBackButtonTitles.includes(title);
 
   return (
     <>
@@ -28,11 +33,11 @@ const CustomNavigation: React.FC<CustomNavigationProps> = ({
         <View style={styles.navigationBar}>
           <TouchableOpacity 
             style={styles.leftButton} 
-            onPress={canGoBack ? onBackPress : onClose}
+            onPress={shouldShowBackButton ? onBackPress : onClose}
           >
-            <Text style={[styles.buttonText, { color: textColor }]}>
-              {canGoBack ? '← 返回' : '✕ 关闭'}
-            </Text>
+            {shouldShowBackButton ? (
+              <AntDesign name="left" color={textColor} size={20} />
+            ) : null}
           </TouchableOpacity>
           
           <Text style={[styles.title, { color: textColor }]} numberOfLines={1}>
@@ -40,7 +45,7 @@ const CustomNavigation: React.FC<CustomNavigationProps> = ({
           </Text>
           
           <TouchableOpacity style={styles.rightButton} onPress={onClose}>
-            <Text style={[styles.buttonText, { color: textColor }]}>完成</Text>
+            <Text style={[styles.buttonText, { color: textColor }]}></Text>
           </TouchableOpacity>
         </View>
       </View>
