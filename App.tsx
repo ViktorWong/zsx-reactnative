@@ -4,9 +4,10 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import WebViewWithNative, { WebViewWithNativeRef } from './components/WebViewWithNative';
 import CustomNavigation from './components/CustomNavigation';
+import { config } from './config'; // 导入配置
 
 export default function App() {
-  const [webViewUrl] = useState('http://192.168.201.144:5173/');
+  const [webViewUrl] = useState(config.webViewUrl); // 使用配置中的地址
   const [pageTitle, setPageTitle] = useState('加载中...');
   const [canGoBack, setCanGoBack] = useState(false);
    const [showNavigation, setShowNavigation] = useState(true); // 新增状态
@@ -17,7 +18,8 @@ export default function App() {
   const webViewRef = useRef<WebViewWithNativeRef>(null);
 
   useEffect(() => {
-    console.log('应用启动成功');
+    console.log('应用启动成功，当前环境:', __DEV__ ? '开发' : '生产');
+    console.log('WebView URL:', webViewUrl);
   }, []);
 
   // 添加 useEffect 监听 pageTitle 的所有变化
