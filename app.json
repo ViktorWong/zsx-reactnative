@@ -13,7 +13,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.zhangshangxing.www",
+      "bundleIdentifier": "com.car.zsx",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -23,7 +23,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.viktor318x.ZsxApp"
+      "package": "com.car.zsx"
     },
     "web": {
       "favicon": "./assets/favicon.png"
