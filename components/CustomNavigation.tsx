@@ -25,11 +25,14 @@ const CustomNavigation: React.FC<CustomNavigationProps> = ({
   // 定义不需要返回按钮的页面标题
   const noBackButtonTitles = ['首页','行程', '我的']; // 根据你的需求调整
   const shouldShowBackButton = canGoBack && !noBackButtonTitles.includes(title);
+  // Android 上状态栏不需要额外的 safe area padding
+  // 只有 iOS 需要处理刘海屏等安全区域
+  const topPadding = Platform.OS === 'ios' ? insets.top : StatusBar.currentHeight || 0;
 
   return (
     <>
-      <StatusBar barStyle="light-content" backgroundColor={backgroundColor} />
-      <View style={[styles.container, { paddingTop: insets.top, backgroundColor }]}>
+      <StatusBar barStyle="light-content" backgroundColor={backgroundColor} translucent={false} />
+      <View style={[styles.container, { paddingTop: topPadding, backgroundColor }]}>
         <View style={styles.navigationBar}>
           <TouchableOpacity 
             style={styles.leftButton} 

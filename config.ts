@@ -1,5 +1,5 @@
 // 环境配置
-const isDevelopment = __DEV__;
+const isDevelopment = false // __DEV__;
 
 export const config = {
   webViewUrl: isDevelopment 

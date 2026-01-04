@@ -57,10 +57,10 @@ const WebViewWithNative = forwardRef<WebViewWithNativeRef, WebViewWithNativeProp
         type: 'location',
         data: locationData
       }));
-    } catch (error) {
+    } catch (error: any) {
       webViewRef.current?.postMessage(JSON.stringify({
         type: 'locationError',
-        data: { error: '获取位置信息失败', details: error.message }
+        data: { error: '获取位置信息失败', details: error?.message }
       }));
     }
   };
@@ -116,47 +116,102 @@ const WebViewWithNative = forwardRef<WebViewWithNativeRef, WebViewWithNativeProp
         return;
       }
       await selectContactFallback();
-    } catch (error) {
+    } catch (error: any) {
       console.error('选择联系人时出错:', error);
       webViewRef.current?.postMessage(JSON.stringify({
         type: 'contactError',
-        data: { error: '无法访问通讯录', details: error.message }
+        data: { error: '无法访问通讯录', details: error?.message }
       }));
     }
   };
 
-  // 获取联系人列表
+  // 使用原生联系人选择器（iOS 和 Android 都支持）
   const selectContactFallback = async () => {
-    // 检查是否支持原生联系人选择器
-      try {
-          // 使用iOS原生联系人选择器
-          const contact = await Contacts.presentContactPickerAsync();
-          // 修复：检查result是否存在且有效
-          if (!contact) {
-            webViewRef.current?.postMessage(JSON.stringify({
-              type: 'contactError',
-              data: { error: '用户取消选择', code: 'USER_CANCELLED' }
-            }));
-            return;
-          }
+    try {
+      // expo-contacts 15+ 版本 presentContactPickerAsync 支持 iOS 和 Android
+      const contact = await Contacts.presentContactPickerAsync();
+      
+      if (!contact) {
+        webViewRef.current?.postMessage(JSON.stringify({
+          type: 'contactError',
+          data: { error: '用户取消选择', code: 'USER_CANCELLED' }
+        }));
+        return;
+      }
 
-          const contactData = {
-            id: contact.id || `contact_${Date.now()}`,
-            name: contact.name || contact.firstName || contact.lastName || '未知联系人',
-            phoneNumber: contact.phoneNumbers?.[0]?.number || '',
-            email: contact.emails?.[0]?.email || '',
-            firstName: contact.firstName || '',
-            lastName: contact.lastName || ''
-          };
+      const contactData = {
+        id: contact.id || `contact_${Date.now()}`,
+        name: contact.name || contact.firstName || contact.lastName || '未知联系人',
+        phoneNumber: contact.phoneNumbers?.[0]?.number || '',
+        email: contact.emails?.[0]?.email || '',
+        firstName: contact.firstName || '',
+        lastName: contact.lastName || ''
+      };
 
-          webViewRef.current?.postMessage(JSON.stringify({
-            type: 'contact',
-            data: contactData
-          }));
+      webViewRef.current?.postMessage(JSON.stringify({
+        type: 'contact',
+        data: contactData
+      }));
+    } catch (error: any) {
+      console.log('原生选择器失败，尝试备用方案:', error);
+      
+      // 如果原生选择器失败（某些 Android 设备可能不支持），使用 fallback
+      if (Platform.OS === 'android') {
+        await selectContactListFallback();
+      } else {
+        webViewRef.current?.postMessage(JSON.stringify({
+          type: 'contactError',
+          data: { error: '获取联系人失败', details: error?.message }
+        }));
+      }
+    }
+  };
 
-        } catch (error) {
-          console.log('原生选择器不可用，使用备用方案:', error);
-        }
+  // Android 备用方案：获取联系人列表发送给 H5
+  const selectContactListFallback = async () => {
+    try {
+      const { data: contacts } = await Contacts.getContactsAsync({
+        fields: [
+          Contacts.Fields.Name,
+          Contacts.Fields.FirstName,
+          Contacts.Fields.LastName,
+          Contacts.Fields.PhoneNumbers,
+          Contacts.Fields.Emails,
+        ],
+      });
+
+      if (!contacts || contacts.length === 0) {
+        webViewRef.current?.postMessage(JSON.stringify({
+          type: 'contactError',
+          data: { error: '通讯录为空', code: 'NO_CONTACTS' }
+        }));
+        return;
+      }
+
+      // 格式化联系人列表，只保留有电话号码的联系人
+      const contactList = contacts
+        .filter(contact => contact.phoneNumbers && contact.phoneNumbers.length > 0)
+        .map(contact => ({
+          id: contact.id || `contact_${Date.now()}_${Math.random()}`,
+          name: contact.name || `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || '未知联系人',
+          phoneNumber: contact.phoneNumbers?.[0]?.number || '',
+          email: contact.emails?.[0]?.email || '',
+          firstName: contact.firstName || '',
+          lastName: contact.lastName || ''
+        }));
+
+      // 发送联系人列表给 H5，让 H5 显示选择界面
+      webViewRef.current?.postMessage(JSON.stringify({
+        type: 'contactList',
+        data: contactList
+      }));
+    } catch (error: any) {
+      console.log('获取联系人列表失败:', error);
+      webViewRef.current?.postMessage(JSON.stringify({
+        type: 'contactError',
+        data: { error: '获取联系人失败', details: error?.message }
+      }));
+    }
   };
 
   // 处理来自WebView的消息
@@ -175,6 +230,13 @@ const WebViewWithNative = forwardRef<WebViewWithNativeRef, WebViewWithNativeProp
           break;
         case 'selectContact':
           selectContact();
+          break;
+        case 'selectContactFromList':
+          // 处理 H5 页面选择的联系人（Android 联系人列表选择后回传）
+          webViewRef.current?.postMessage(JSON.stringify({
+            type: 'contact',
+            data: data.data
+          }));
           break;
         default:
           console.log('未知消息类型:', data.type);
