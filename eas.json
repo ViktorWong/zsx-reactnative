@@ -8,6 +8,9 @@
       "node": "20.19.4",
       "env": {
         "NPM_CONFIG_REGISTRY": "https://registry.npmmirror.com"
+      },
+      "android": {
+        "image": "latest"
       }
     },
     "development": {
